@@ -48,56 +48,79 @@ def get_suggestions(weather_data):
 
     return suggestions
 
-
 def weather_has_changed(current, previous):
-    if not previous:
-        return True
+    try:
+        if not previous:
+            return True
 
-    temp_diff = abs(current.get("temp", 0) - previous.get("temp", 0))
-    wind_diff = abs(current.get("wind_speed", 0) - previous.get("wind_speed", 0))
-    uv_diff = abs(current.get("uv_index", 0) - previous.get("uv_index", 0))
-    condition_changed = current.get("condition", "").lower() != previous.get("condition", "").lower()
+        temp_diff = abs(current.get("temp", 0) - previous.get("temp", 0))
+        wind_diff = abs(current.get("wind_speed", 0) - previous.get("wind_speed", 0))
+        uv_diff = abs(current.get("uv_index", 0) - previous.get("uv_index", 0))
+        condition_changed = current.get("condition", "").lower() != previous.get("condition", "").lower()
 
-    return temp_diff > 3 or wind_diff > 5 or uv_diff > 2 or condition_changed
+        return temp_diff > 3 or wind_diff > 5 or uv_diff > 2 or condition_changed
+
+    except Exception as e:
+        print(f"[ERROR] Failed to compare weather changes: {e}")
+        return True  # Assume weather changed if comparison fails
 
 
 def send_notification(title, message):
-    notification.notify(
-        title=title,
-        message=message,
-        timeout=10
-    )
+    try:
 
 
-def smart_weather_notification(current_weather,delay=10):
+        notification.notify(
+            title=title,
+            message=message,
+            timeout=10
+        )
+    except Exception as e:
+        print(f"[ERROR] Failed to send notification: {e}")
+
+
+def smart_weather_notification(current_weather, delay=10):
     global previous_weather
+    try:
+        if weather_has_changed(current_weather, previous_weather):
+            suggestions = get_suggestions(current_weather)
+            delay = 0  # Reset delay for immediate suggestions
+            for suggestion in suggestions:
+                Timer(delay, lambda s=suggestion: send_notification("Smart Clothing Tip 👕", s)).start()
+                delay += 5  # Stagger notifications by 5 seconds
+            previous_weather = current_weather.copy()
+        else:
+            print("[INFO] Weather has not changed significantly. No new suggestions.")
+    except Exception as e:
+        print(f"[ERROR] Failed to send smart weather notifications: {e}")
 
-    if weather_has_changed(current_weather, previous_weather):
-        suggestions = get_suggestions(current_weather)
-        delay = 0
-        for suggestion in suggestions:
-            Timer(delay, lambda s=suggestion: send_notification("Smart Clothing Tip 👕", s)).start()
-            delay += 5
-        previous_weather = current_weather.copy()
-
-
-# ❗ Simulate weather update (replace this with your real app's weather API)
 def fetch_weather_mock():
-    return {
-        "temp": random.randint(0, 38),
-        "condition": random.choice(["clear", "rain", "fog", "snow", "drizzle"]),
-        "wind_speed": random.randint(0, 40),
-        "uv_index": random.randint(0, 10)
-    }
-
-
-# 🔁 Periodic weather check (every 30 minutes = 1800 seconds)
+    try:
+        weather = {
+            "temp": random.randint(0, 38),
+            "condition": random.choice(["clear", "rain", "fog", "snow", "drizzle"]),
+            "wind_speed": random.randint(0, 40),
+            "uv_index": random.randint(0, 10)
+        }
+        print(f"[DEBUG] Fetched mock weather: {weather}")
+        return weather
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch mock weather: {e}")
+        return {}
+    
 def start_periodic_weather_check(interval_seconds=1800):
     def check_and_reschedule():
-        current_weather = fetch_weather_mock()  # Replace with real API call
-        print(f"🔄 Checking weather: {current_weather}")
-        smart_weather_notification(current_weather)
-        Timer(interval_seconds, check_and_reschedule).start()
+        try:
+            current_weather = fetch_weather_mock()  # Replace with real API call
+            if current_weather:
+                print(f"🔄 Checking weather: {current_weather}")
+                smart_weather_notification(current_weather)
+            else:
+                print("[WARN] Skipping weather check due to missing data.")
+        except Exception as e:
+            print(f"[ERROR] Weather checking failed: {e}")
+        finally:
+            # Always reschedule next check
+            Timer(interval_seconds, check_and_reschedule).start()
 
     check_and_reschedule()
 
