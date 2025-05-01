@@ -7,6 +7,7 @@ from kivymd.uix.card import MDCard
 from kivy.uix.video import Video
 from kivy.uix.floatlayout import FloatLayout
 from kivy.metrics import dp
+from kivy.resources import resource_find
 import socket
 from threading import Timer
 from kivy.clock import Clock
@@ -28,8 +29,14 @@ class WeatherLayout(FloatLayout):
         self.last_city = None
         self.weather_data = None
 
+        video_file = resource_find("assets/backgrounds/sunny.mp4") or ""
+        if not video_file:
+            print("[ERROR] Default video not found!")
+        else:
+            print(f"[INFO] Loaded video: {video_file}")
+
         self.video_bg = Video(
-            source="assets/backgrounds/sunny.mp4",
+            source=video_file,
             state='play',
             options={'eos': 'loop'},
             volume=0,
@@ -39,8 +46,11 @@ class WeatherLayout(FloatLayout):
             pos_hint={"x": 0, "y": 0}
         )
         self.add_widget(self.video_bg)
+        try:
+            pygame.mixer.init()
+        except Exception as e:
+            print(f"[ERROR] pygame mixer init failed: {e}")
 
-        pygame.mixer.init()
         self.current_music = None
 
         self.scroll_view = MDScrollView(
@@ -64,7 +74,7 @@ class WeatherLayout(FloatLayout):
     height=dp(48),  # Ideal for text fields (accessible size)
     font_size="16sp",
     pos_hint={"center_x": 0.5}
-)
+     )
 
         self.search_button = MDRectangleFlatButton(
     text="Search Weather",
@@ -74,7 +84,7 @@ class WeatherLayout(FloatLayout):
     pos_hint={"center_x": 0.5},
     on_release=self.search_city_weather,
     icon="magnify"
-)
+        )
         self.weather_icon = MDIconButton(
             icon="weather-cloudy",
             icon_size="64sp",
@@ -125,10 +135,12 @@ class WeatherLayout(FloatLayout):
 
     def play_music_for_weather(self, condition, temp):
         condition = condition.lower()
-       
         is_daytime = 6 <= datetime.now().hour < 18
 
+        # Default music selection based on time
         music_file = "assets/music/summer.mp3" if is_daytime else "assets/music/night.mp3"
+
+        # Weather-based override
         if "rain" in condition:
             music_file = "assets/music/rain.mp3"
         elif "cloud" in condition and 15 <= temp <= 25:
@@ -136,11 +148,24 @@ class WeatherLayout(FloatLayout):
         elif "snow" in condition or temp < 15:
             music_file = "assets/music/snow.mp3"
 
-        if music_file != self.current_music and os.path.exists(music_file):
-            pygame.mixer.music.stop()
-            pygame.mixer.music.load(music_file)
-            pygame.mixer.music.play(-1)
-            self.current_music = music_file
+        # Resolve full path using resource_find
+        resolved_path = resource_find(music_file)
+
+        if not resolved_path:
+            print(f"[ERROR] Music file not found: {music_file}")
+            return
+
+        try:
+            if resolved_path != self.current_music:
+                if pygame.mixer.get_init() is None:
+                    pygame.mixer.init()
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(resolved_path)
+                pygame.mixer.music.play(-1)
+                self.current_music = resolved_path
+                print(f"[INFO] Playing: {music_file}")
+        except Exception as e:
+            print(f"[ERROR] Music playback failed: {e}")
 
     def get_weather_icon(self, condition):
         condition = condition.lower()
