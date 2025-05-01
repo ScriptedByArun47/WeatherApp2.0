@@ -1,7 +1,9 @@
 from kivymd.app import MDApp
 from kivy.clock import Clock
+import os
 from ui.layout import WeatherLayout
 from datetime import datetime
+from kivy.resources import resource_find
 from utils.location import GPSHelper
 
 class WeatherApp(MDApp):
@@ -44,25 +46,36 @@ class WeatherApp(MDApp):
     def set_live_wallpaper(self, condition_main, temperature):
         try:
             condition = condition_main.lower()
-            current_hour = datetime.now().hour  
+            current_hour = datetime.now().hour
             is_daytime = 6 <= current_hour < 18
 
-            video_path = "assets/backgrounds/sunny.mp4" if is_daytime else "assets/backgrounds/night.mp4"
-
             if "rain" in condition:
-                video_path = "assets/backgrounds/rain2.mp4"
+                video = "assets/backgrounds/rain2.mp4"
             elif "cloud" in condition and 15 <= temperature <= 25:
-                video_path = "assets/backgrounds/cloud.mp4"
+                video = "assets/backgrounds/cloud.mp4"
             elif "snow" in condition or temperature < 15:
-                video_path = "assets/backgrounds/snow2.mp4"
+                video = "assets/backgrounds/snow2.mp4"
             elif "thunder" in condition or "storm" in condition:
-                video_path = "assets/backgrounds/cloud.mp4"
+                video = "assets/backgrounds/cloud.mp4"
+            else:
+                video = "assets/backgrounds/sunny.mp4" if is_daytime else "assets/backgrounds/night.mp4"
 
-            self.weather_ui.video_bg.source = video_path
-            self.weather_ui.video_bg.state = 'play'
+            video_path = resource_find(video)
+
+            if video_path and os.path.isfile(video_path):
+                Clock.schedule_once(lambda dt: self._play_video(video_path), 1)
+            else:
+                print(f"[ERROR] Video path not found: {video_path}")
         except Exception as e:
             print(f"[ERROR] Failed to set live wallpaper: {e}")
-
+    def _play_video(self, path):
+        try:
+            if hasattr(self.weather_ui, 'video_bg') and self.weather_ui.video_bg:
+                self.weather_ui.video_bg.source = path
+                self.weather_ui.video_bg.state = 'play'
+        except Exception as e:
+            print(f"[ERROR] Failed to play video: {e}")
+            
     def apply_weather_theme(self, condition_main, temperature):
         try:
             condition = condition_main.lower()
