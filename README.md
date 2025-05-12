@@ -26,7 +26,7 @@ A sleek and feature-rich weather application built using KivyMD, designed to del
 
 
 
-
+[Click here to view the demo video](assets/demo1.mp4)
 
 
 
