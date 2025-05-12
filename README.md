@@ -38,7 +38,4 @@ A sleek and feature-rich weather application built using KivyMD, designed to del
 
 
 
-
-
-
   
